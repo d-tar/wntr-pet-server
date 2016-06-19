@@ -15,41 +15,68 @@ type MavRenderable interface {
 	Render(http.ResponseWriter) error
 }
 
+//Base web request processing interface
 type WebController interface {
 	Serve(*http.Request) MavRenderable
 }
 
+//Single function request processor interface
+//
+//  use it to create single-method-request-handlers'
+//
+//   var routes struct{
+//           MyHandler  HandlerFunc `@web-uri:"/my-uri"`
+//   }
+//
+//   routes.MyHandler = functionalHandler
+//
+//
 type HandlerFunc func(*http.Request) MavRenderable
+
+func _() {
+	var h HandlerFunc = nil
+	var _ WebController = h
+}
 
 func (this HandlerFunc) Serve(r *http.Request) MavRenderable {
 	return this(r)
 }
 
-type WebSupport struct {
-	//List of mappings loaded by DeclRequestMapping processor
-	//when WebController component is initialized
-	mappings []RequestMapping
-	//Note: we need to inject all WebControllers
-	// to force their construction before WebSupport
-	// otherwise we will not see them in <mappings> list
-	AllHandlers []WebController `inject:"a"`
 
+//WebServer Component
+//
+//   On PostInit phase it fetches all WebController components
+//	that were defined with @web-url  tag and registers them
+//	with http.Handler. Then it starts web server
+//
+//   On PreDestroy phase component destroys listener to stop
+// 	http.Server's serving cycle
+type WebServerComponent struct {
 	listener  net.Listener
 	wait      *sync.Cond
 	exitError error
+
+	Ctx 	wntr.ConfiguredContext	`inject:"t"`
+}
+func _() {
+	var _ wntr.PostInitable = &WebServerComponent{}
 }
 
-type RequestMapping struct {
+
+/*
+Begin Implementation
+ */
+
+type requestMapping struct {
 	path    string
 	handler WebController
 }
 
-func test_interfaces() {
-	var _ wntr.PostInitable = &WebSupport{}
-}
+var gWebControllerType reflect.Type = reflect.TypeOf( (*WebController)(nil)).Elem();
 
-func (this *WebSupport) PostInit() error {
-	for _, c := range this.mappings {
+
+func (this *WebServerComponent) PostInit() error {
+	for _, c := range this.requestMappings() {
 		log.Println("WebMVC: Mapped ", c.path, " to  ", c.handler, " ")
 		http.HandleFunc(c.path, createMavHandler(c.handler))
 	}
@@ -71,6 +98,24 @@ func (this *WebSupport) PostInit() error {
 	return nil
 }
 
+func (this *WebServerComponent) requestMappings() []requestMapping {
+	r := make([]requestMapping,0)
+
+	for _,ctl := range this.Ctx.FindComponentsByType(gWebControllerType){
+
+		tag := ctl.Tags()
+		if uri := tag.Get("@web-uri"); uri != "" {
+			r = append(r, requestMapping{
+				path: uri,
+				handler: ctl.Instance().(WebController),
+			})
+		}
+	}
+
+
+	return r
+}
+
 func createMavHandler(c WebController) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mav := c.Serve(r)
@@ -78,17 +123,19 @@ func createMavHandler(c WebController) func(http.ResponseWriter, *http.Request) 
 	}
 }
 
-func (this *WebSupport) Wait() error {
+func (this *WebServerComponent) Wait() error {
 	this.wait.Wait()
 	return this.exitError
 }
 
-func (this *WebSupport) PreDestroy() {
+func (this *WebServerComponent) PreDestroy() {
 	log.Println("Closing WebSupport http listener")
 	this.listener.Close()
 }
 
-func listenAndServe(srv *http.Server, web *WebSupport) error {
+//Hack to capture listener object to perform
+//server shutdown on component stop
+func listenAndServe(srv *http.Server, web *WebServerComponent) error {
 	addr := srv.Addr
 	if addr == "" {
 		addr = ":http"
@@ -100,6 +147,8 @@ func listenAndServe(srv *http.Server, web *WebSupport) error {
 	web.listener = ln
 	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
+
+//code below was coped from go's stdlib
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
 // connections. It's used by ListenAndServe and ListenAndServeTLS so
@@ -117,39 +166,4 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	tc.SetKeepAlive(true)
 	tc.SetKeepAlivePeriod(3 * time.Minute)
 	return tc, nil
-}
-
-/*
- Web request handler autoregistration support
-*/
-
-type DeclRequestMapping struct {//implements wntr.ComponentLifecycle
-	Web *WebSupport
-}
-
-func _(){
-	var _ wntr.ComponentLifecycle = &DeclRequestMapping{}
-}
-
-//This handler collects each component that was defined with tag @web-url
-//and writes this data to WebSupport component
-func (h *DeclRequestMapping) OnPrepareComponent(c *wntr.Component) error {
-	if ctl, ok := c.Inst.(WebController); ok {
-		tag := reflect.StructTag(c.Tags)
-		if uri := tag.Get("@web-uri"); uri != "" {
-			h.Web.mappings = append(h.Web.mappings,
-				RequestMapping{uri, ctl},
-			)
-		}
-	}
-	return nil
-}
-
-func (h *DeclRequestMapping) OnComponentReady(*wntr.Component) error {
-	return nil
-}
-
-func (h *DeclRequestMapping) OnDestroyComponent(*wntr.Component) error {
-
-	return nil
 }

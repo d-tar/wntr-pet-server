@@ -9,6 +9,9 @@ type JsonMavRenderable struct {
 	data     interface{}
 	httpCode int
 }
+func _(){
+	var _ MavRenderable = &JsonMavRenderable{}
+}
 
 func (v *JsonMavRenderable) Render(w http.ResponseWriter) error {
 	b, err := json.Marshal(v.data)

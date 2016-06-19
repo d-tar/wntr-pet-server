@@ -7,6 +7,16 @@ import (
 	"net/http"
 )
 
+
+
+//List of concrete handlers
+type WebRoutes struct {
+	//Allows to shutdown context and app by GET /shutdown request
+	ExitCtrl server.HandlerFunc `@web-uri:"/shutdown"`
+	//Sample data handler
+	UserCtrl server.UserController `@web-uri:"/user"`
+}
+
 //This definition provides:
 //    	1. Request processing via WebController interface
 //	2. ModelAndView basics via MavRenderable and JsonMavRenderable
@@ -15,41 +25,34 @@ import (
 //
 //
 type EnableWebSupport struct {
-	Web    server.WebSupport
-	Mapper server.DeclRequestMapping //NOTE: Mapper need's to know about WebSupport component
+	//First of all we register web handlers
+	WebRoutes
+	//At top we define WebServerComponent that runs WebController
+	Web    server.WebServerComponent
 }
 
-//List of concrete handlers
-type RegisterWebHandlers struct {
-	//Allows to shutdown context and app by GET /shutdown request
-	ExitCtrl server.HandlerFunc `@web-uri:"/shutdown"`
-	//Sample data handler
-	UserCtrl server.UserController `@web-uri:"/user"`
-}
 
 //Application singleton
 var app struct {
 	//Include web support context
 	EnableWebSupport
-	//Include web-handlers context
-	RegisterWebHandlers
 	//Get Context to stop by shutdown handler
 	Context wntr.Context `inject:"t"`
 }
 
+
+//Start Application
 func main() {
-	app.EnableWebSupport.Mapper.Web = &app.EnableWebSupport.Web
+	//Define our web router before we begin
+	app.WebRoutes.ExitCtrl = shutdownHandler
 
-	app.RegisterWebHandlers.ExitCtrl = shutdownHandler
-
-	if _, err := wntr.FastBoot(&app); err != nil {
-		log.Fatal(err)
-	}
+	//Create context from 'application structure'
+	// then start it, and panic if something go wrong
+	wntr.ContextOrPanic(&app)
 
 	if err := app.Web.Wait(); err != nil {
 		log.Fatal("Application died with errors\n", err)
 	}
-
 }
 
 func shutdownHandler(*http.Request) server.MavRenderable{

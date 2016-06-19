@@ -6,6 +6,7 @@ import (
 	"net/url"
 )
 
+//Simple users handler
 type UserController struct{}
 
 func (this *UserController) Serve(r *http.Request) MavRenderable {

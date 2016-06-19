@@ -9,7 +9,7 @@ import (
 type UserController struct{}
 
 func (this *UserController) Serve(r *http.Request) MavRenderable {
-	if err := r.ParseForm(); err == nil {
+	if err := r.ParseForm(); err != nil {
 		return MavErr(fmt.Sprintf("Request died :( \n Could this explain you why?\n%v", err))
 	}
 

@@ -16,7 +16,7 @@ import (
 //
 type EnableWebSupport struct {
 	Web    server.WebSupport
-	Mapper server.WebUrlMapper //NOTE: Mapper need's to know about WebSupport component
+	Mapper server.DeclRequestMapping //NOTE: Mapper need's to know about WebSupport component
 }
 
 //List of concrete handlers

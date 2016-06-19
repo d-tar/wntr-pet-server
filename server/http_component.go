@@ -26,7 +26,13 @@ func (this HandlerFunc) Serve(r *http.Request) MavRenderable {
 }
 
 type WebSupport struct {
+	//List of mappings loaded by DeclRequestMapping processor
+	//when WebController component is initialized
 	mappings []RequestMapping
+	//Note: we need to inject all WebControllers
+	// to force their construction before WebSupport
+	// otherwise we will not see them in <mappings> list
+	AllHandlers []WebController `inject:"a"`
 
 	listener  net.Listener
 	wait      *sync.Cond
@@ -117,13 +123,17 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
  Web request handler autoregistration support
 */
 
-type WebUrlMapper struct { //implements wntr.ComponentLifecycle
+type DeclRequestMapping struct {//implements wntr.ComponentLifecycle
 	Web *WebSupport
+}
+
+func _(){
+	var _ wntr.ComponentLifecycle = &DeclRequestMapping{}
 }
 
 //This handler collects each component that was defined with tag @web-url
 //and writes this data to WebSupport component
-func (h *WebUrlMapper) OnPrepareComponent(c wntr.Component) error {
+func (h *DeclRequestMapping) OnPrepareComponent(c *wntr.Component) error {
 	if ctl, ok := c.Inst.(WebController); ok {
 		tag := reflect.StructTag(c.Tags)
 		if uri := tag.Get("@web-uri"); uri != "" {
@@ -135,11 +145,11 @@ func (h *WebUrlMapper) OnPrepareComponent(c wntr.Component) error {
 	return nil
 }
 
-func (h *WebUrlMapper) OnComponentReady(wntr.Component) error {
+func (h *DeclRequestMapping) OnComponentReady(*wntr.Component) error {
 	return nil
 }
 
-func (h *WebUrlMapper) OnDestroyComponent(wntr.Component) error {
+func (h *DeclRequestMapping) OnDestroyComponent(*wntr.Component) error {
 
 	return nil
 }

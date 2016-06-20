@@ -2,19 +2,25 @@ package main
 
 import (
 	"github.com/d-tar/wntr"
-	"github.com/d-tar/wntr-server/server"
+	"github.com/d-tar/wntr/webmvc"
+	"github.com/d-tar/wntr-server/app/controllers"
+	"github.com/d-tar/wntr-server/app/services"
 	"log"
 	"net/http"
+	"github.com/d-tar/wntr-server/app"
 )
 
-
+type EnableServices struct {
+	UsersDao services.UsersDaoLedis
+}
 
 //List of concrete handlers
 type WebRoutes struct {
+	//Enable User API
+	controllers.UserApiRoutes
+
 	//Allows to shutdown context and app by GET /shutdown request
-	ExitCtrl server.HandlerFunc `@web-uri:"/shutdown"`
-	//Sample data handler
-	UserCtrl server.UserController `@web-uri:"/user"`
+	ExitCtrl webmvc.HandlerFunc `@web-uri:"/shutdown"`
 }
 
 //This definition provides:
@@ -28,34 +34,46 @@ type EnableWebSupport struct {
 	//First of all we register web handlers
 	WebRoutes
 	//At top we define WebServerComponent that runs WebController
-	Web    server.WebServerComponent
+	Web webmvc.WebServerComponent
+	Mvc webmvc.MvcHandler
 }
 
-
 //Application singleton
-var app struct {
+var gApp struct {
+	//Register application services
+	EnableServices
 	//Include web support context
 	EnableWebSupport
 	//Get Context to stop by shutdown handler
 	Context wntr.Context `inject:"t"`
 }
 
-
 //Start Application
 func main() {
 	//Define our web router before we begin
-	app.WebRoutes.ExitCtrl = shutdownHandler
+	gApp.WebRoutes.ExitCtrl = shutdownHandler
+
+	//We need custom json view I used to
+	gApp.EnableWebSupport.Mvc.SetWebViews(createViewMap())
 
 	//Create context from 'application structure'
 	// then start it, and panic if something go wrong
-	wntr.ContextOrPanic(&app)
+	wntr.ContextOrPanic(&gApp)
 
-	if err := app.Web.Wait(); err != nil {
+	if err := gApp.Web.Wait(); err != nil {
 		log.Fatal("Application died with errors\n", err)
 	}
 }
 
-func shutdownHandler(*http.Request) server.MavRenderable{
-	app.Context.Stop()
-	return server.MavOk("Shutting down context")
+func shutdownHandler(*http.Request) webmvc.WebResult {
+	gApp.Context.Stop()
+	return webmvc.WebOk("Shutting down context")
+}
+
+
+func createViewMap() map[string]webmvc.WebView{
+	m:=make( map[string]webmvc.WebView)
+	m["JSON"] = app.NewCustomJsonView()
+	m[""]=m["JSON"]
+	return m
 }

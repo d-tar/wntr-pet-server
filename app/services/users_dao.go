@@ -12,11 +12,11 @@ import (
 )
 
 type UsersDao interface {
-	GetUser(id string) (*User,error)
+	GetUser(id string) (*User, error)
 	//UpdateUser(*User) error
 	//DeleteUser(*User) error
 	CreateUser() (*User, error)
-	ListUsers(from int,to int) ([]*User,error)
+	ListUsers(from int, to int) ([]*User, error)
 }
 
 type UsersDaoLedis struct {
@@ -76,35 +76,38 @@ func (this *UsersDaoLedis) CreateUser() (*User, error) {
 	return &u, nil
 }
 
-func (this *UsersDaoLedis) ListUsers(from int,to int) ([]*User,error){
-	result,err :=this.db.Scan(ledis.KV,nil,to,false,"")
+func (this *UsersDaoLedis) ListUsers(from int, to int) ([]*User, error) {
+	result, err := this.db.Scan(ledis.KV, nil, to, false, "")
 
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	r := make([]*User,len(result))
+	r := make([]*User, len(result))
 
-	for i,blob := range result{
-		id:=string(blob)
+	for i, blob := range result {
+		id := string(blob)
 		r[i] = &User{
 			Id: id,
 		}
 	}
 
-
-	return r,nil
+	return r, nil
 }
 
-func (this *UsersDaoLedis) GetUser(id string) (*User,error){
-	bUser,err := this.db.Get([]byte(id))
+func (this *UsersDaoLedis) GetUser(id string) (*User, error) {
+	bUser, err := this.db.Get([]byte(id))
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	u:=&User{}
-	if err:=json.Unmarshal(bUser,u);err!=nil{
-		return nil,err
+	if bUser == nil {
+		return nil, fmt.Errorf("User %v not exists", id)
 	}
-	return u,nil
+
+	u := &User{}
+	if err := json.Unmarshal(bUser, u); err != nil {
+		return nil, err
+	}
+	return u, nil
 }

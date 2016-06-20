@@ -17,15 +17,22 @@ func NewCustomJsonView() webmvc.WebView {
 }
 
 func RenderJsonView(mav webmvc.WebResult, w http.ResponseWriter, r *http.Request) error {
+
+	model := mav.Model()
+
+	if err, ok := model.(error); ok {
+		model = err.Error()
+	}
+
 	var newMav webmvc.WebResult
 	if mav.HttpCode() == 200 {
 		newMav = webmvc.WebOk(&BaseJsonResponse{
-			Data:   mav.Model(),
+			Data:   model,
 			Status: "ok",
 		})
 	} else {
 		newMav = webmvc.WebErr(&BaseJsonResponse{
-			Error:  mav.Model(),
+			Error:  model,
 			Status: "err",
 		})
 	}

@@ -2,12 +2,11 @@ package main
 
 import (
 	"github.com/d-tar/wntr"
-	"github.com/d-tar/wntr/webmvc"
+	"github.com/d-tar/wntr-server/app"
 	"github.com/d-tar/wntr-server/app/controllers"
 	"github.com/d-tar/wntr-server/app/services"
+	"github.com/d-tar/wntr/webmvc"
 	"log"
-	"net/http"
-	"github.com/d-tar/wntr-server/app"
 )
 
 type EnableServices struct {
@@ -34,8 +33,7 @@ type EnableWebSupport struct {
 	//First of all we register web handlers
 	WebRoutes
 	//At top we define WebServerComponent that runs WebController
-	Web webmvc.WebServerComponent
-	Mvc webmvc.MvcHandler
+	webmvc.EnableDefaultWebMvc
 }
 
 //Application singleton
@@ -65,15 +63,14 @@ func main() {
 	}
 }
 
-func shutdownHandler(*http.Request) webmvc.WebResult {
+func shutdownHandler(*webmvc.WebRequest) webmvc.WebResult {
 	gApp.Context.Stop()
 	return webmvc.WebOk("Shutting down context")
 }
 
-
-func createViewMap() map[string]webmvc.WebView{
-	m:=make( map[string]webmvc.WebView)
+func createViewMap() map[string]webmvc.WebView {
+	m := make(map[string]webmvc.WebView)
 	m["JSON"] = app.NewCustomJsonView()
-	m[""]=m["JSON"]
+	m[""] = m["JSON"]
 	return m
 }

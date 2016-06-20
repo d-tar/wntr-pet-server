@@ -2,16 +2,15 @@ package controllers
 
 import (
 	"github.com/d-tar/wntr-server/app/services"
-	web "github.com/d-tar/wntr/webmvc"
-	"net/http"
+	"github.com/d-tar/wntr/webmvc"
 )
 
 type UserApiRoutes struct {
 	UserCtrl UserController
 	//Sample data handler
-	ListUsers web.HandlerFunc `@web-uri:"/users" @web-method:"GET"`
-	GetUser   web.HandlerFunc `@web-uri:"/user" @web-method:"GET"`
-	NewUser   web.HandlerFunc `@web-uri:"/user/new" @web-method:"GET"`
+	ListUsers webmvc.HandlerFunc `@web-uri:"/users"    @web-method:"GET"`
+	GetUser   webmvc.HandlerFunc `@web-uri:"/user/:id" @web-method:"GET"`
+	NewUser   webmvc.HandlerFunc `@web-uri:"/user/new" @web-method:"GET"`
 }
 
 //On context setup, let's bind web route methods to controller methods
@@ -27,41 +26,40 @@ type UserController struct {
 	UserDao services.UsersDao `inject:"t"`
 }
 
-func (this *UserController) ListUsers(r *http.Request) web.WebResult {
+func (this *UserController) ListUsers(r *webmvc.WebRequest) webmvc.WebResult {
 
-	u, err := this.UserDao.ListUsers(0,100)
+	u, err := this.UserDao.ListUsers(0, 100)
 	if err != nil {
-		return web.WebErr(err)
+		return webmvc.WebErr(err)
 	}
 
-	return web.WebOk(u)
+	return webmvc.WebOk(u)
 }
 
-func (this *UserController) CreateUser(r *http.Request) web.WebResult {
+func (this *UserController) CreateUser(r *webmvc.WebRequest) webmvc.WebResult {
 
 	u, err := this.UserDao.CreateUser()
 	if err != nil {
-		return web.WebErr(err)
+		return webmvc.WebErr(err)
 	}
 
-	return web.WebOk(u)
+	return webmvc.WebOk(u)
 }
 
-func (this *UserController) GetUser(r *http.Request) web.WebResult {
-	if err := r.ParseForm(); err != nil {
-		return web.WebErr(err)
+func (this *UserController) GetUser(r *webmvc.WebRequest) webmvc.WebResult {
+	if err := r.HttpRequest.ParseForm(); err != nil {
+		return webmvc.WebErr(err)
 	}
 
-	id := r.Form.Get("id")
-	if id==""{
-		return web.WebErr("Missing required parameter 'id'")
+	id := r.NamedParameters["id"]
+	if id == "" {
+		return webmvc.WebErr("Missing required parameter 'id'")
 	}
 
-
-	u,err:=this.UserDao.GetUser(id)
+	u, err := this.UserDao.GetUser(id)
 	if err != nil {
-		return web.WebErr(err)
+		return webmvc.WebErr(err)
 	}
 
-	return web.WebOk(u)
+	return webmvc.WebOk(u)
 }

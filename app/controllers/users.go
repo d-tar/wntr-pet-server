@@ -8,9 +8,9 @@ import (
 type UserApiRoutes struct {
 	UserCtrl UserController
 	//Sample data handler
-	ListUsers webmvc.HandlerFunc `@web-uri:"/users"    @web-method:"GET"`
+	ListUsers webmvc.HandlerFunc `@web-uri:"/users"`
 	GetUser   webmvc.HandlerFunc `@web-uri:"/user/:id" @web-method:"GET"`
-	NewUser   webmvc.HandlerFunc `@web-uri:"/user/new" @web-method:"GET"`
+	NewUser   webmvc.HandlerFunc `@web-uri:"/user/new" @web-method:"POST"`
 }
 
 //On context setup, let's bind web route methods to controller methods

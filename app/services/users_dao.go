@@ -13,7 +13,7 @@ import (
 
 type UsersDao interface {
 	GetUser(id string) (*User, error)
-	//UpdateUser(*User) error
+	SaveUser(*User) error
 	//DeleteUser(*User) error
 	CreateUser() (*User, error)
 	ListUsers(from int, to int) ([]*User, error)
@@ -110,4 +110,21 @@ func (this *UsersDaoLedis) GetUser(id string) (*User, error) {
 		return nil, err
 	}
 	return u, nil
+}
+
+func (this *UsersDaoLedis) SaveUser(u *User) error {
+	var bId, bUser []byte
+	var err error
+
+	if bUser, err = json.Marshal(u); err != nil {
+		return err
+	}
+
+	bId = []byte(u.Id)
+
+	if err := this.db.Set(bId, bUser); err != nil {
+		return err
+	}
+
+	return nil
 }

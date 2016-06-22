@@ -42,6 +42,8 @@ var gApp struct {
 	EnableServices
 	//Include web support context
 	EnableWebSupport
+
+	Conversion wntr.GenericConversionService
 	//Get Context to stop by shutdown handler
 	Context wntr.Context `inject:"t"`
 }
@@ -53,6 +55,11 @@ func main() {
 
 	//We need custom json view I used to
 	gApp.EnableWebSupport.Mvc.SetWebViews(createViewMap())
+
+	gApp.Conversion.StandardConverters = []wntr.Converter{
+		wntr.ConverterBridge(errorToWebResult),
+		wntr.ConverterBridge(anyToWebResult),
+	}
 
 	//Create context from 'application structure'
 	// then start it, and panic if something go wrong
@@ -73,4 +80,12 @@ func createViewMap() map[string]webmvc.WebView {
 	m["JSON"] = app.NewCustomJsonView()
 	m[""] = m["JSON"]
 	return m
+}
+
+func anyToWebResult(v interface{}) (webmvc.WebResult, error) {
+	return webmvc.WebOk(v), nil
+}
+
+func errorToWebResult(e error) (webmvc.WebResult, error) {
+	return webmvc.WebErr(e), nil
 }
